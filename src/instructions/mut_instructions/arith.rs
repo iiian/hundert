@@ -24,11 +24,7 @@ impl Arith {
 
 impl MutInstr for Arith {
     fn execute(&self, core: &mut crate::core::Core) {
-        let val = match self.src {
-            SrcType::Literal(n) => n,
-            SrcType::Resource(DestType::Acc) => core.acc,
-            SrcType::Resource(DestType::Nil) => return,
-        };
+        let val = self.src.read(core);
 
         core.acc = if self.is_addition {
             core.acc + val
@@ -92,17 +88,6 @@ mod test {
         let mut core = Core::new();
         core.acc = 16;
         let i = Arith::new_add(SrcType::Resource(DestType::Nil));
-
-        i.execute(&mut core);
-
-        assert_eq!(core.acc, 16);
-    }
-
-    #[test]
-    fn sub_should_nop_on_nil() {
-        let mut core = Core::new();
-        core.acc = 16;
-        let i = Arith::new_sub(SrcType::Resource(DestType::Nil));
 
         i.execute(&mut core);
 

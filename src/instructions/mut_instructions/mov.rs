@@ -9,7 +9,7 @@ pub struct Mov {
 }
 
 impl Mov {
-    /// Create a new [Mov] [Instruction] instance.
+    /// Create a new [Mov] instance.
     pub fn new(src: SrcType, dest: DestType) -> Self {
         Self { src, dest }
     }
@@ -18,16 +18,8 @@ impl Mov {
 impl MutInstr for Mov {
     /// Attempts to copy information available at the source specified by `src`, to the storage location at `dest`.
     fn execute(&self, core: &mut Core) {
-        let src_val = match self.src {
-            SrcType::Resource(DestType::Acc) => core.acc,
-            SrcType::Resource(DestType::Nil) => return,
-            SrcType::Literal(n) => n,
-        };
-
-        match self.dest {
-            DestType::Acc => core.acc = src_val,
-            DestType::Nil => return,
-        }
+        let value = self.src.read(core);
+        self.dest.write(value, core);
     }
 }
 

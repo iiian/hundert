@@ -18,9 +18,8 @@ impl<'i> Jro<'i> {
 impl<'i> CtrlInstr<'i> for Jro<'i> {
     fn execute(&self, core: &mut Core) -> &'i Ctrl<'i> {
         let offset = match self.src {
-            SrcType::Literal(offset) => offset,
-            SrcType::Resource(DestType::Acc) => core.acc,
             SrcType::Resource(DestType::Nil) => return self.instrs[self.index],
+            _ => self.src.read(core),
         };
 
         // This block does the clock math to wrap around the instruction set enough times
