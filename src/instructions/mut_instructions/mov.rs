@@ -17,6 +17,9 @@ impl Mov {
 
 impl MutInstr for Mov {
     /// Attempts to copy information available at the source specified by `src`, to the storage location at `dest`.
+    /// A `src` may be either a literal number, nil (which will evaluate to zero), acc, or any of the
+    /// four companion ports of a [Core](crate::core::Core). A dest may be `acc`, or any of the
+    /// companion ports.
     fn execute(&self, core: &mut Core) {
         let value = self.src.read(core);
         self.dest.write(value, core);

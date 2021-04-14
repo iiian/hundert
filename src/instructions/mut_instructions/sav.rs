@@ -4,12 +4,14 @@ use crate::core::Core;
 pub struct Sav;
 
 impl Sav {
+    /// Create a new [Sav] instruction.
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 }
 
 impl MutInstr for Sav {
+    /// Write [Core.acc](crate::core::Core) -> [Core.bak](crate::core::Core).
     fn execute(&self, core: &mut Core) {
         core.bak = core.acc;
     }

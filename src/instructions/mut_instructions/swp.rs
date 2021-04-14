@@ -4,12 +4,14 @@ use crate::core::Core;
 pub struct Swp;
 
 impl Swp {
+    /// Create a new [Swp] instruction.
     pub fn new() -> Self {
         Self {}
     }
 }
 
 impl MutInstr for Swp {
+    /// acc <-> bak in [Core](crate::core::Core) memory.
     fn execute(&self, core: &mut Core) {
         std::mem::swap(&mut core.acc, &mut core.bak);
     }

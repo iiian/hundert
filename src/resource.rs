@@ -19,6 +19,7 @@ pub enum DestType {
 }
 
 impl DestType {
+    /// Send a value to a core memory destination.
     pub fn write(&self, value: i16, core: &mut Core) {
         match self {
             DestType::Acc => core.acc = value,
@@ -40,6 +41,7 @@ pub enum SrcType {
 }
 
 impl SrcType {
+    /// Read a value from a core memory source.
     pub fn read(&self, core: &Core) -> i16 {
         match self {
             &SrcType::Literal(val) => val,

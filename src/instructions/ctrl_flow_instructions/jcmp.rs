@@ -9,6 +9,7 @@ enum CmpStrategy {
     Lz,
 }
 
+/// Implements the four branch flow instructions: _jez, jnz, jlz, jgz_ in the TIS-100 spec.
 pub struct JCmp<'i> {
     cmp: CmpStrategy,
     next: &'i Ctrl<'i>,
@@ -16,6 +17,7 @@ pub struct JCmp<'i> {
 }
 
 impl<'i> JCmp<'i> {
+    /// Create a new jez instruction.
     pub fn new_ez(next: &'i Ctrl<'i>, branch: &'i Ctrl<'i>) -> Self {
         Self {
             cmp: CmpStrategy::Ez,
@@ -24,6 +26,7 @@ impl<'i> JCmp<'i> {
         }
     }
 
+    /// Create a new jnz instruction.
     pub fn new_nz(next: &'i Ctrl<'i>, branch: &'i Ctrl<'i>) -> Self {
         Self {
             cmp: CmpStrategy::Nz,
@@ -32,6 +35,7 @@ impl<'i> JCmp<'i> {
         }
     }
 
+    /// Create a new jgz instruction.
     pub fn new_gz(next: &'i Ctrl<'i>, branch: &'i Ctrl<'i>) -> Self {
         Self {
             cmp: CmpStrategy::Gz,
@@ -39,7 +43,7 @@ impl<'i> JCmp<'i> {
             branch,
         }
     }
-
+    /// Create a new jlz instruction.   
     pub fn new_lz(next: &'i Ctrl<'i>, branch: &'i Ctrl<'i>) -> Self {
         Self {
             cmp: CmpStrategy::Lz,
@@ -61,6 +65,8 @@ impl<'i> JCmp<'i> {
 }
 
 impl<'i> CtrlInstr<'i> for JCmp<'i> {
+    /// Decide whether the branch instruction or the next instruction should be returned based on
+    /// the state of the core, and the configuration of this instruction.
     fn execute(&self, core: &mut Core) -> &'i Ctrl<'i> {
         if self.will_branch(core) {
             self.branch

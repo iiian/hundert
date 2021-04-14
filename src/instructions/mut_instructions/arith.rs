@@ -7,6 +7,7 @@ pub struct Arith {
 }
 
 impl Arith {
+    /// Creates an add instruction.
     pub fn new_add(src: SrcType) -> Self {
         Self {
             src,
@@ -14,6 +15,7 @@ impl Arith {
         }
     }
 
+    /// Creates a subtraction instruction.
     pub fn new_sub(src: SrcType) -> Self {
         Self {
             src,

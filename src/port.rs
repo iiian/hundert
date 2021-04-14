@@ -3,22 +3,28 @@ use std::thread;
 
 use crate::core::Core;
 
-struct PortInstance {
+/// The IO interface, as facing one core. Two instances of a PortInterface would be distributed
+/// between two Cores, respectively, to constitute a complete channel.
+struct PortInterface {
     inbound: Receiver<i16>,
     outbound: SyncSender<i16>,
 }
 
+/// The simulator has the concept of non-connected ports. Broken channels need park their thread
+/// permanently when written to or read from.
 pub enum Port {
     Broken,
-    Ok(PortInstance),
+    Ok(PortInterface),
 }
 
 impl Port {
+    /// Create a new Port.
     pub fn new(inbound: Receiver<i16>, outbound: SyncSender<i16>) -> Self {
-        Self::Ok(PortInstance { inbound, outbound })
+        Self::Ok(PortInterface { inbound, outbound })
     }
 
-    pub fn send(&self, val: i16) {
+    /// Write data to the companion core.
+    pub fn write(&self, val: i16) {
         match self {
             Port::Ok(x) => x.outbound.send(val),
             Port::Broken => loop {
@@ -27,7 +33,8 @@ impl Port {
         };
     }
 
-    pub fn get(&self) -> i16 {
+    /// Read data from the companion core.
+    pub fn read(&self) -> i16 {
         match self {
             Port::Ok(x) => x.inbound.recv().unwrap(),
             Port::Broken => loop {
@@ -37,19 +44,21 @@ impl Port {
     }
 }
 
+/// By default, port connections are "broken".
 impl Default for Port {
     fn default() -> Self {
         Port::Broken
     }
 }
 
+/// Connect two [Cores](crate::core::Core) as vertical neighbors. See [Core::new()](crate::core::Core) for an example.
 pub fn bind_up_down(north: &mut Core, south: &mut Core) {
     let (tx_a, rx_a) = sync_channel(1);
     let (tx_b, rx_b) = sync_channel(1);
     north.down = Port::new(rx_a, tx_b);
     south.up = Port::new(rx_b, tx_a);
 }
-
+/// Connect two [Cores](crate::core::Core) as horizontal neighbors. See [Core::new()](crate::core::Core) for an example.
 pub fn bind_left_right(west: &mut Core, east: &mut Core) {
     let (tx_a, rx_a) = sync_channel(1);
     let (tx_b, rx_b) = sync_channel(1);
