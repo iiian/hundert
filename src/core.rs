@@ -1,8 +1,7 @@
-use std::{mem, sync::mpsc::sync_channel};
+use std::{iter::Inspect, mem, sync::mpsc::sync_channel};
 use crate::port::Port;
 
-pub struct Core<'i> {
-    name: &'i str,
+pub struct Core {
     acc: i16,
     bak: i16,
     left: Port,
@@ -11,7 +10,7 @@ pub struct Core<'i> {
     down: Port,
 
     p_ctr: usize,
-    instrs: &'i [Instr],
+    instrs: Vec<Instr>,
 }
 
 pub enum Src {
@@ -29,6 +28,7 @@ pub enum Dest {
     Down,
     Left,
     Right,
+    Nil,
 }
 
 pub enum Instr {
@@ -50,10 +50,9 @@ pub enum Instr {
     Nop,
 }
 
-impl<'i> Core<'i> {
-    pub fn new(name: &'i str, instrs: &'i [Instr]) -> Self {
+impl Core {
+    pub fn new(instrs: Vec<Instr>) -> Self {
         Self {
-            name,
             acc: 0,
             bak: 0,
             left: Port::Dsc,
@@ -73,91 +72,24 @@ impl<'i> Core<'i> {
         self.bak
     }
 
-    pub fn load(&mut self, instrs: &'i [Instr]) {
+    pub fn load(&mut self, instrs: Vec<Instr>) {
         self.instrs = instrs;
     }
 
     pub fn cycle(&mut self) {
         let instr = &self.instrs[self.p_ctr];
-        self.p_ctr += self.execute(instr);
-        self.p_ctr = clk_index(self.p_ctr as i16, self.instrs.len() as i16) as usize;
-    }
-
-    pub fn bind_up(&mut self, above: &mut Core) {
-        match (&above.down, &self.up) {
-            (Port::Dsc, Port::Dsc) => {}
-            _ => panic!("Cannot rebind ports"),
-        };
-        let (tx_a, rx_a) = sync_channel(1);
-        let (tx_b, rx_b) = sync_channel(1);
-        above.down = Port::new(rx_a, tx_b);
-        self.up = Port::new(rx_b, tx_a);
-    }
-
-    pub fn bind_down(&mut self, under: &mut Core) {
-        match (&self.down, &under.up) {
-            (Port::Dsc, Port::Dsc) => {}
-            _ => panic!("Cannot rebind ports"),
-        };
-        let (tx_a, rx_a) = sync_channel(1);
-        let (tx_b, rx_b) = sync_channel(1);
-        self.down = Port::new(rx_a, tx_b);
-        under.up = Port::new(rx_b, tx_a);
-    }
-
-    pub fn bind_left(&mut self, to_left: &mut Core) {
-        match (&to_left.right, &self.left) {
-            (Port::Dsc, Port::Dsc) => {}
-            _ => panic!("Cannot rebind ports"),
-        };
-        let (tx_a, rx_a) = sync_channel(1);
-        let (tx_b, rx_b) = sync_channel(1);
-        to_left.right = Port::new(rx_a, tx_b);
-        self.left = Port::new(rx_b, tx_a);
-    }
-
-    pub fn bind_right(&mut self, to_right: &mut Core) {
-        match (&to_right.left, &self.right) {
-            (Port::Dsc, Port::Dsc) => {}
-            _ => panic!("Cannot rebind ports"),
-        };
-        let (tx_a, rx_a) = sync_channel(1);
-        let (tx_b, rx_b) = sync_channel(1);
-        self.right = Port::new(rx_a, tx_b);
-        to_right.left = Port::new(rx_b, tx_a);
-    }
-
-    fn get_instrs(&self) -> &[Instr] {
-        self.instrs
-    }
-
-    fn read(&self, src: &Src) -> i16 {
-        match src {
-            Src::Acc => self.acc,
-            Src::Up => self.up.read(),
-            Src::Down => self.down.read(),
-            Src::Left => self.left.read(),
-            Src::Right => self.right.read(),
-            &Src::Literal(val) => val,
-        }
-    }
-
-    pub fn write(&mut self, val: i16, dest: &Dest) {
-        match dest {
-            Dest::Acc => self.acc = val,
-            Dest::Up => self.up.write(val),
-            Dest::Down => self.down.write(val),
-            Dest::Left => self.left.write(val),
-            Dest::Right => self.right.write(val),
-        };
-    }
-
-    fn execute(&mut self, instr: &Instr) -> usize {
-        match instr {
+        self.p_ctr += match instr {
             Instr::Nop => 1,
             Instr::Mov(src, dest) => {
                 let val = self.read(src);
-                self.write(val, dest);
+                match dest {
+                    &Dest::Acc => self.acc = val,
+                    &Dest::Up => self.up.write(val),
+                    &Dest::Down => self.down.write(val),
+                    &Dest::Left => self.left.write(val),
+                    &Dest::Right => self.right.write(val),
+                    &Dest::Nil => {},
+                };
                 1
             }
             Instr::Swp => {
@@ -215,6 +147,79 @@ impl<'i> Core<'i> {
                 clk_index(offset, clk) as usize
             }
         }
+    ;
+        self.p_ctr = clk_index(self.p_ctr as i16, self.instrs.len() as i16) as usize;
+    }
+
+    pub fn bind_up(&mut self, above: &mut Core) {
+        match (&above.down, &self.up) {
+            (Port::Dsc, Port::Dsc) => {}
+            _ => panic!("Cannot rebind ports"),
+        };
+        let (tx_a, rx_a) = sync_channel(1);
+        let (tx_b, rx_b) = sync_channel(1);
+        above.down = Port::new(rx_a, tx_b);
+        self.up = Port::new(rx_b, tx_a);
+    }
+
+    pub fn bind_down(&mut self, under: &mut Core) {
+        match (&self.down, &under.up) {
+            (Port::Dsc, Port::Dsc) => {}
+            _ => panic!("Cannot rebind ports"),
+        };
+        let (tx_a, rx_a) = sync_channel(1);
+        let (tx_b, rx_b) = sync_channel(1);
+        self.down = Port::new(rx_a, tx_b);
+        under.up = Port::new(rx_b, tx_a);
+    }
+
+    pub fn bind_left(&mut self, to_left: &mut Core) {
+        match (&to_left.right, &self.left) {
+            (Port::Dsc, Port::Dsc) => {}
+            _ => panic!("Cannot rebind ports"),
+        };
+        let (tx_a, rx_a) = sync_channel(1);
+        let (tx_b, rx_b) = sync_channel(1);
+        to_left.right = Port::new(rx_a, tx_b);
+        self.left = Port::new(rx_b, tx_a);
+    }
+
+    pub fn bind_right(&mut self, to_right: &mut Core) {
+        match (&to_right.left, &self.right) {
+            (Port::Dsc, Port::Dsc) => {}
+            _ => panic!("Cannot rebind ports"),
+        };
+        let (tx_a, rx_a) = sync_channel(1);
+        let (tx_b, rx_b) = sync_channel(1);
+        self.right = Port::new(rx_a, tx_b);
+        to_right.left = Port::new(rx_b, tx_a);
+    }
+
+    fn get_instrs(&self) -> &[Instr] {
+        &self.instrs
+    }
+
+    fn read(&self, src: &Src) -> i16 {
+        match src {
+            Src::Acc => self.acc,
+            Src::Up => self.up.read(),
+            Src::Down => self.down.read(),
+            Src::Left => self.left.read(),
+            Src::Right => self.right.read(),
+            &Src::Literal(val) => val,
+        }
+    }
+
+    #[inline]
+    pub fn write(&mut self, val: i16, dest: &Dest) {
+        match dest {
+            &Dest::Acc => self.acc = val,
+            &Dest::Up => self.up.write(val),
+            &Dest::Down => self.down.write(val),
+            &Dest::Left => self.left.write(val),
+            &Dest::Right => self.right.write(val),
+            &Dest::Nil => {},
+        };
     }
 }
 

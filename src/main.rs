@@ -1,7 +1,9 @@
 #![allow(warnings, unused)]
 
 mod core;
+mod parse;
 mod port;
+use parse::parse_subroutine;
 
 use crate::core::{Core, Dest, Instr, Src};
 use std::{
@@ -10,19 +12,16 @@ use std::{
 };
 
 fn main() {
-    let mut src = Core::new("src", &[]);
-    let mut c1 = Core::new("c1", &[Instr::Mov(Src::Up, Dest::Down)]);
+    let mut src = Core::new(vec![]);
+    let mut c1 = Core::new(parse_subroutine("MOV UP DOWN"));
     src.bind_down(&mut c1);
-    let mut c2 = Core::new(
-        "c2",
-        &[
-            Instr::Mov(Src::Up, Dest::Acc),
-            Instr::Add(Src::Acc),
-            Instr::Mov(Src::Acc, Dest::Down),
-        ],
-    );
+    let mut c2 = Core::new(parse_subroutine(
+        "MOV UP ACC
+ADD ACC
+MOV ACC DOWN",
+    ));
     c1.bind_down(&mut c2);
-    let mut sink = Core::new("sink", &[Instr::Mov(Src::Up, Dest::Acc)]);
+    let mut sink = Core::new(parse_subroutine("MOV UP ACC"));
     c2.bind_down(&mut sink);
     let (src_tx, src_rx) = channel::<i16>();
     let (sink_tx, sink_rx) = channel::<i16>();
