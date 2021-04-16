@@ -1,5 +1,5 @@
-use std::{iter::Inspect, mem, sync::mpsc::sync_channel};
 use crate::port::Port;
+use std::{mem, sync::mpsc::sync_channel};
 
 pub struct Core {
     acc: i16,
@@ -78,8 +78,8 @@ impl Core {
 
     pub fn cycle(&mut self) {
         let instr = &self.instrs[self.p_ctr];
-        self.p_ctr += match instr {
-            Instr::Nop => 1,
+        let index_opt = match instr {
+            Instr::Nop => None,
             Instr::Mov(src, dest) => {
                 let val = self.read(src);
                 match dest {
@@ -88,66 +88,70 @@ impl Core {
                     &Dest::Down => self.down.write(val),
                     &Dest::Left => self.left.write(val),
                     &Dest::Right => self.right.write(val),
-                    &Dest::Nil => {},
+                    &Dest::Nil => {}
                 };
-                1
+                None
             }
             Instr::Swp => {
                 mem::swap(&mut self.acc, &mut self.bak);
-                1
+                None
             }
             Instr::Sav => {
                 self.bak = self.acc;
-                1
+                None
             }
             Instr::Add(src) => {
                 self.acc = self.acc + self.read(src);
-                1
+                None
             }
             Instr::Sub(src) => {
                 self.acc = self.acc - self.read(src);
-                1
+                None
             }
             Instr::Neg => {
                 self.acc = self.acc * -1;
-                1
+                None
             }
-            &Instr::Jez(offset) => {
+            &Instr::Jez(addr) => {
                 if self.acc == 0 {
-                    offset
+                    Some(addr)
                 } else {
-                    1
+                    None
                 }
             }
-            &Instr::Jnz(offset) => {
+            &Instr::Jnz(addr) => {
                 if self.acc != 0 {
-                    offset
+                    Some(addr)
                 } else {
-                    1
+                    None
                 }
             }
-            &Instr::Jgz(offset) => {
+            &Instr::Jgz(addr) => {
                 if self.acc > 0 {
-                    offset
+                    Some(addr)
                 } else {
-                    1
+                    None
                 }
             }
-            &Instr::Jlz(offset) => {
+            &Instr::Jlz(addr) => {
                 if self.acc < 0 {
-                    offset
+                    Some(addr)
                 } else {
-                    1
+                    None
                 }
             }
-            &Instr::Jmp(offset) => offset,
+            &Instr::Jmp(addr) => Some(addr),
             Instr::Jro(src) => {
                 let offset = self.read(src);
                 let clk = self.instrs.len() as i16;
-                clk_index(offset, clk) as usize
+                Some(clk_index(offset, clk) as usize)
             }
-        }
-    ;
+        };
+        self.p_ctr = if let Some(index) = index_opt {
+            index
+        } else {
+            self.p_ctr + 1
+        };
         self.p_ctr = clk_index(self.p_ctr as i16, self.instrs.len() as i16) as usize;
     }
 
@@ -218,11 +222,11 @@ impl Core {
             &Dest::Down => self.down.write(val),
             &Dest::Left => self.left.write(val),
             &Dest::Right => self.right.write(val),
-            &Dest::Nil => {},
+            &Dest::Nil => {}
         };
     }
 }
 
-fn clk_index(offset: i16, clk: i16) -> i16 {
+pub fn clk_index(offset: i16, clk: i16) -> i16 {
     ((offset % clk) + clk) % clk
 }

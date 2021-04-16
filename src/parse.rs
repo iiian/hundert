@@ -1,18 +1,27 @@
 use core::panic;
-use std::collections::HashMap;
+use std::{collections::HashMap, usize};
 
-use crate::core::{Dest, Instr, Src};
+use crate::core::{Dest, Instr, Src, clk_index};
 
 pub fn parse_subroutine(input: &str) -> Vec<Instr> {
     let mut instrs: Vec<Instr> = vec![];
+    if input.len() == 0 {
+        return instrs;
+    }
     let mut label_map = HashMap::<&str, usize>::new();
     for (index, line) in input.split("\n").enumerate() {
         let maybe_label: Vec<_> = line.split(":").collect();
-        let instr_body = if maybe_label.len() == 2 {
+        if maybe_label.len() == 2 {
             if label_map.contains_key(maybe_label[0]) {
                 panic!()
             }
             label_map.insert(maybe_label[0], index);
+        }
+    }
+
+    for (index, line) in input.split("\n").enumerate() {
+        let maybe_label: Vec<_> = line.split(":").collect();
+        let instr_body = if maybe_label.len() == 2 {
             maybe_label[1]
         } else {
             line
@@ -35,11 +44,11 @@ fn parse_instr(instr_body: &str, label_map: &HashMap<&str, usize>, index: &usize
         "ADD" => parse_add_instr(instr_body),
         "SUB" => parse_sub_instr(instr_body),
         "NEG" => Instr::Neg,
-        "JMP" => parse_jmp_instr(instr_body, &label_map, index),
-        "JEZ" => parse_jez_instr(instr_body, &label_map, index),
-        "JNZ" => parse_jnz_instr(instr_body, &label_map, index),
-        "JGZ" => parse_jgz_instr(instr_body, &label_map, index),
-        "JLZ" => parse_jlz_instr(instr_body, &label_map, index),
+        "JMP" => parse_jmp_instr(instr_body, &label_map),
+        "JEZ" => parse_jez_instr(instr_body, &label_map),
+        "JNZ" => parse_jnz_instr(instr_body, &label_map),
+        "JGZ" => parse_jgz_instr(instr_body, &label_map),
+        "JLZ" => parse_jlz_instr(instr_body, &label_map),
         "JRO" => parse_jro_instr(instr_body),
         unk => panic!("Unrecognized instruction: {} with body {}", unk, instr_body),
     }
@@ -52,41 +61,36 @@ fn parse_jro_instr(instr_body: &str) -> Instr {
 fn parse_jlz_instr(
     instr_body: &str,
     label_map: &HashMap<&str, usize>,
-    current_index: &usize,
 ) -> Instr {
-    Instr::Jlz(*label_map.get(instr_body.trim()).unwrap() - current_index)
+    Instr::Jlz(*label_map.get(instr_body.trim()).unwrap())
 }
 
 fn parse_jgz_instr(
     instr_body: &str,
     label_map: &HashMap<&str, usize>,
-    current_index: &usize,
 ) -> Instr {
-    Instr::Jgz(*label_map.get(instr_body.trim()).unwrap() - current_index)
+    Instr::Jgz(*label_map.get(instr_body.trim()).unwrap())
 }
 
 fn parse_jnz_instr(
     instr_body: &str,
     label_map: &HashMap<&str, usize>,
-    current_index: &usize,
 ) -> Instr {
-    Instr::Jnz(*label_map.get(instr_body.trim()).unwrap() - current_index)
+    Instr::Jnz(*label_map.get(instr_body.trim()).unwrap())
 }
 
 fn parse_jez_instr(
     instr_body: &str,
     label_map: &HashMap<&str, usize>,
-    current_index: &usize,
 ) -> Instr {
-    Instr::Jez(*label_map.get(instr_body.trim()).unwrap() - current_index)
+    Instr::Jez(*label_map.get(instr_body.trim()).unwrap())
 }
 
 fn parse_jmp_instr(
     instr_body: &str,
     label_map: &HashMap<&str, usize>,
-    current_index: &usize,
 ) -> Instr {
-    Instr::Jmp(*label_map.get(instr_body.trim()).unwrap() - current_index)
+    Instr::Jmp(*label_map.get(instr_body.trim()).unwrap())
 }
 
 fn parse_sub_instr(instr_body: &str) -> Instr {
